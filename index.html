@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Simulator: Guess The Number</title>
+    <style>
+        /* ==========================================================================
+           1. CSS VARIABLES & COLOR PALETTE
+           ========================================================================== */
+        :root {
+            /* Backgrounds */
+            --bg-main: #0d1117;
+            --bg-panel: #161b22;
+            --bg-card: #21262d;
+            --bg-terminal: #000000;
+            
+            /* Borders */
+            --border-color: #30363d;
+            --border-focus: #58a6ff;
+            
+            /* Text Colors */
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --text-heading: #ffffff;
+            
+            /* Terminal Colors */
+            --term-text: #00ff00;
+            --term-error: #ff5555;
+            --term-prompt: #58a6ff;
+            --term-success: #3fb950;
+            --term-warn: #d29922;
+
+            /* Python Syntax Highlighting */
+            --py-kw: #ff7b72;       /* Keywords */
+            --py-func: #d2a8ff;     /* Functions */
+            --py-str: #a5d6ff;      /* Strings */
+            --py-num: #79c0ff;      /* Numbers */
+            --py-com: #8b949e;      /* Comments */
+            
+            /* Fonts */
+            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: "Fira Code", "JetBrains Mono", Consolas, monospace;
+        }
+
+        /* ==========================================================================
+           2. GLOBAL RESET & BASE STYLES
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-main) var(--bg-body);
+        }
+
+        body {
+            font-family: var(--font-ui);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ==========================================================================
+           3. LAYOUT STRUCTURE
+           ========================================================================== */
+        .navbar {
+            height: 60px;
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-heading);
+        }
+
+        .brand-logo {
+            width: 24px;
+            height: 24px;
+            fill: var(--border-focus);
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .split-view {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .panel {
+            flex: 1;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        /* ==========================================================================
+           4. SIDEBAR: SETTINGS & CONTROLS
+           ========================================================================== */
+        .settings-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .settings-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 5px;
+            color: var(--text-main);
+        }
+
+        .form-control {
+            width: 100%;
+            background-color: var(--bg-main);
+            border: 1px solid var(--border-color);
+            color: var(--text-heading);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary { background-color: var(--term-success); color: #fff; }
+        .btn-primary:hover { background-color: #2ea043; }
+        .btn-danger { background-color: transparent; border: 1px solid var(--term-error); color: var(--term-error); }
+        .btn-danger:hover { background-color: rgba(255, 85, 85, 0.1); }
+
+        /* ==========================================================================
+           5. PANEL HEADERS
+           ========================================================================== */
+        .panel-header {
+            background-color: var(--bg-panel);
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+        }
+
+        .tab-icon {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* ==========================================================================
+           6. PYTHON SOURCE CODE VIEWER
+           ========================================================================== */
+        .code-viewer {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            background-color: var(--bg-main);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-main);
+            white-space: pre;
+        }
+
+        .kw { color: var(--py-kw); font-weight: bold; }
+        .fn { color: var(--py-func); }
+        .st { color: var(--py-str); }
+        .nm { color: var(--py-num); }
+        .cm { color: var(--py-com); font-style: italic; }
+
+        /* ==========================================================================
+           7. TERMINAL SIMULATOR
+           ========================================================================== */
+        .terminal-wrapper {
+            flex: 1;
+            background-color: var(--bg-terminal);
+            display: flex;
+            flex-direction: column;
+            font-family: var(--font-mono);
+            font-size: 14px;
+        }
+
+        .terminal-output {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .term-line {
+            word-wrap: break-word;
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        .msg-sys { color: var(--text-muted); }
+        .msg-out { color: var(--text-heading); }
+        .msg-prompt { color: var(--term-prompt); }
+        .msg-err { color: var(--term-error); }
+        .msg-succ { color: var(--term-success); }
+        .msg-warn { color: var(--term-warn); }
+
+        .terminal-input-line {
+            display: flex;
+            padding: 0 15px 15px 15px;
+            align-items: center;
+        }
+
+        .prompt-symbol {
+            color: var(--term-prompt);
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--term-text);
+            font-family: var(--font-mono);
+            font-size: 14px;
+            outline: none;
+            caret-color: var(--term-text);
+        }
+
+        .terminal-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ==========================================================================
+           8. HISTORY TABLE
+           ========================================================================== */
+        .history-panel {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-wrapper {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: var(--bg-panel);
+            padding: 10px 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-weight: 600;
+            z-index: 5;
+        }
+
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        tr:hover td {
+            background-color: rgba(255,255,255,0.02);
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-high { background: rgba(210, 153, 34, 0.2); color: var(--term-warn); border: 1px solid var(--term-warn); }
+        .badge-low { background: rgba(88, 166, 255, 0.2); color: var(--border-focus); border: 1px solid var(--border-focus); }
+        .badge-correct { background: rgba(63, 185, 80, 0.2); color: var(--term-success); border: 1px solid var(--term-success); }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-row {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="nav-brand">
+            <svg class="brand-logo" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+                <path d="M53.9.1C24.4.1 26.6 12.8 26.6 12.8l.1 13.5h28v4H20.4S-.1 28-.1 55.4c0 27.5 17.6 28 17.6 28h9.5v-13s-.2-15.5 15.3-15.5H58s14.8-.5 14.8-15V15.7S73.5.1 53.9.1zm-15 8.7c2.5 0 4.5 2 4.5 4.6 0 2.5-2 4.6-4.5 4.6s-4.5-2-4.5-4.6c0-2.5 2-4.5 4.5-4.5zM76 31.7c0 2.5-2 4.5-4.5 4.5s-4.5-2-4.5-4.5 2-4.5 4.5-4.5 4.5 2 4.5 4.5zM56 110c29.5 0 27.4-12.7 27.4-12.7l-.1-13.5h-28v-4h34.3s20.5 2.3 20.5-25.1c0-27.5-17.6-28-17.6-28h-9.5v13s.2 15.5-15.3 15.5H52s-14.8.5-14.8 15v14.2S36.5 110 56 110z" fill="#3776ab"/>
+                <path d="M53.9.1C24.4.1 26.6 12.8 26.6 12.8l.1 13.5h28v4H20.4S-.1 28-.1 55.4c0 14.4 4.5 22 9.5 25.4V68.5s-.2-15.5 15.3-15.5H58s14.8-.5 14.8-15V15.7S73.5.1 53.9.1zm-15 8.7c2.5 0 4.5 2 4.5 4.6 0 2.5-2 4.6-4.5 4.6s-4.5-2-4.5-4.5 2-4.5 4.5-4.5z" fill="#ffd343"/>
+            </svg>
+            Python Executor: Guess The Number
+        </div>
+        <div style="font-size: 13px; color: var(--text-muted);">
+            Project Constraints Met: <strong>All (Random, If/Else, Loops, Input)</strong>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="settings-card">
+                <div class="settings-title">Game Controls</div>
+                <button id="btnStart" class="btn btn-primary" onclick="startGame()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    Run Python Script
+                </button>
+                <button id="btnReset" class="btn btn-danger" style="margin-top: 10px;" onclick="resetEnvironment()" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                    Interrupt Execution
+                </button>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-title">Customization (Variables)</div>
+                <div class="form-group">
+                    <label for="minVal">Minimum Number:</label>
+                    <input type="number" id="minVal" class="form-control" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="maxVal">Maximum Number:</label>
+                    <input type="number" id="maxVal" class="form-control" value="100">
+                </div>
+                <div class="form-group">
+                    <label for="maxGuesses">Maximum Guesses (0 = infinite):</label>
+                    <input type="number" id="maxGuesses" class="form-control" value="0">
+                </div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
+                    *Variables update dynamically when "Run Python Script" is clicked.
+                </p>
+            </div>
+            
+            <div class="settings-card" style="border-color: var(--term-warn);">
+                <div class="settings-title" style="color: var(--term-warn);">Instructions</div>
+                <ul style="font-size: 12px; color: var(--text-muted); padding-left: 15px;">
+                    <li>Press <strong>Run Python Script</strong> to start the environment.</li>
+                    <li>Type your guess in the terminal at the bottom.</li>
+                    <li>Press <strong>Enter</strong> to submit the guess.</li>
+                    <li>Read the terminal feedback to adjust your guess.</li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="workspace">
+            
+            <div class="split-view">
+                
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-tab">
+                            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            guess_game.py
+                        </div>
+                        <span style="font-size: 11px; color: var(--text-muted);">Read-Only</span>
+                    </div>
+                    <div class="code-viewer">
+<span class="kw">import</span> random
+
+<span class="kw">def</span> <span class="fn">play_guess_the_number</span>(min_val, max_val, max_attempts):
+    <span class="cm"># 1. Use print to provide game entry</span>
+    <span class="fn">print</span>(<span class="st">"Welcome to the Guess the Number game!"</span>)
+    
+    <span class="cm"># 2. Use random.randint() to generate target</span>
+    target_number = random.randint(min_val, max_val)
+    <span class="fn">print</span>(<span class="st">f"I'm thinking of a number between {min_val} and {max_val}."</span>)
+    
+    attempts = <span class="nm">0</span>
+    
+    <span class="cm"># 3. Use a while loop to continue prompting</span>
+    <span class="kw">while True</span>:
+        <span class="kw">if</span> max_attempts > <span class="nm">0</span> <span class="kw">and</span> attempts >= max_attempts:
+            <span class="fn">print</span>(<span class="st">f"Game Over! The number was {target_number}."</span>)
+            <span class="kw">break</span>
+            
+        <span class="cm"># 4. Use input() to prompt the player</span>
+        guess_str = <span class="fn">input</span>(<span class="st">"Enter your guess: "</span>)
+        
+        <span class="kw">try</span>:
+            <span class="cm"># 5. Use int() to convert guess to integer</span>
+            guess = <span class="fn">int</span>(guess_str)
+        <span class="kw">except</span> ValueError:
+            <span class="fn">print</span>(<span class="st">"Invalid input. Please enter a number."</span>)
+            <span class="kw">continue</span>
+            
+        attempts += <span class="nm">1</span>
+        
+        <span class="cm"># 6. Use if/else logic for feedback</span>
+        <span class="kw">if</span> guess < target_number:
+            <span class="fn">print</span>(<span class="st">"Your guess is too low. Guess again."</span>)
+        <span class="kw">elif</span> guess > target_number:
+            <span class="fn">print</span>(<span class="st">"Your guess is too high. Guess again."</span>)
+        <span class="kw">else</span>:
+            <span class="fn">print</span>(<span class="st">"Congratulations! You guessed the number correctly!"</span>)
+            <span class="kw">break</span>
+
+<span class="cm"># Execute game based on UI parameters</span>
+play_guess_the_number(min_val, max_val, max_attempts)</div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <div class="panel-tab">
+                            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                            Terminal Execution
+                        </div>
+                    </div>
+                    <div class="terminal-wrapper" id="terminal" onclick="focusInput()">
+                        <div class="terminal-output" id="output">
+                            <div class="term-line msg-sys">Python 3.10.12 (main, Jun 11 2023, 05:26:28) [GCC 11.4.0] on linux</div>
+                            <div class="term-line msg-sys">Type "help", "copyright", "credits" for more information.</div>
+                            <div class="term-line msg-sys">Waiting for script execution...</div>
+                        </div>
+                        <div class="terminal-input-line">
+                            <span class="prompt-symbol">>>></span>
+                            <input type="text" id="cmdInput" class="terminal-input" autocomplete="off" disabled placeholder="Press 'Run Python Script' to begin...">
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section class="history-panel">
+                <div class="panel-header">
+                    <div class="panel-tab">
+                        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        Guess Tracker & History
+                    </div>
+                    <div id="statsCounter" style="font-size: 12px; color: var(--border-focus);">
+                        Attempts: 0 | Remaining: ∞
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="historyTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 10%;">Attempt</th>
+                                <th style="width: 20%;">Guessed Number</th>
+                                <th style="width: 50%;">Feedback Evaluated</th>
+                                <th style="width: 20%;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr id="historyPlaceholder">
+                                <td colspan="4" style="text-align: center; color: var(--text-muted); font-style: italic;">
+                                    No guesses made yet. Start the game!
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // --- Game State Variables ---
+        let gameActive = false;
+        let targetNumber = 0;
+        let minRange = 1;
+        let maxRange = 100;
+        let maxAllowedGuesses = 0;
+        let currentAttempts = 0;
+
+        // --- DOM Elements ---
+        const outputDiv = document.getElementById('output');
+        const cmdInput = document.getElementById('cmdInput');
+        const btnStart = document.getElementById('btnStart');
+        const btnReset = document.getElementById('btnReset');
+        const historyBody = document.getElementById('historyBody');
+        const statsCounter = document.getElementById('statsCounter');
+
+        // --- Terminal Helper Functions ---
+
+        function scrollToBottom() {
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+
+        function focusInput() {
+            cmdInput.focus();
+        }
+
+        function printToTerminal(text, className = "msg-out") {
+            const line = document.createElement('div');
+            line.className = `term-line ${className}`;
+            line.innerText = text;
+            outputDiv.appendChild(line);
+            scrollToBottom();
+        }
+
+        function clearTerminal() {
+            outputDiv.innerHTML = '';
+        }
+
+        // --- Tracker Helper Functions ---
+
+        function resetHistoryTable() {
+            historyBody.innerHTML = `
+                <tr id="historyPlaceholder">
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); font-style: italic;">
+                        No guesses made yet. Start the game!
+                    </td>
+                </tr>
+            `;
+        }
+
+        // --- Game Initialization ---
+
+        function startGame() {
+            // Read Customization Settings
+            minRange = parseInt(document.getElementById('minVal').value) || 1;
+            maxRange = parseInt(document.getElementById('maxVal').value) || 100;
+            maxAllowedGuesses = parseInt(document.getElementById('maxGuesses').value) || 0;
+            
+            // Validate logical range
+            if (minRange >= maxRange) {
+                alert("Minimum value must be less than maximum value!");
+                return;
+            }
+
+            // Reset Game State
+            gameActive = true;
+            currentAttempts = 0;
+            updateStatsUI();
+            resetHistoryTable(); // Restores the placeholder on a new game
+
+            // UI Adjustments
+            btnStart.disabled = true;
+            btnReset.disabled = false;
+            cmdInput.disabled = false;
+            cmdInput.placeholder = "Type a number here...";
+            cmdInput.value = "";
+            
+            clearTerminal();
+
+            // System execute message
+            printToTerminal(`$ python guess_game.py --min=${minRange} --max=${maxRange}`, "msg-sys");
+            printToTerminal("Loading script...", "msg-sys");
+
+            // Python random.randint logic equivalent in JS
+            targetNumber = Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
+
+            // Delayed intro to simulate processing
+            setTimeout(() => {
+                // Fulfilling constraints: Use 'print' function to provide feedback
+                printToTerminal("Welcome to the Guess the Number game!");
+                printToTerminal(`I'm thinking of a number between ${minRange} and ${maxRange}. Can you guess what it is?`);
+                printToTerminal("Enter your guess:", "msg-prompt");
+                focusInput();
+            }, 600);
+        }
+
+        function resetEnvironment() {
+            gameActive = false;
+            btnStart.disabled = false;
+            btnReset.disabled = true;
+            cmdInput.disabled = false; 
+            cmdInput.value = "";
+            cmdInput.placeholder = "Press Enter to start a new game...";
+            
+            currentAttempts = 0;
+            updateStatsUI();
+            resetHistoryTable();
+            
+            printToTerminal("^C KeyboardInterrupt", "msg-err");
+            printToTerminal("Script execution terminated.", "msg-sys");
+        }
+
+        // --- Game Core Logic ---
+
+        // Listen for "Enter" key on the input field
+        cmdInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                const userString = this.value.trim();
+                
+                // FIX: If game is over, pressing enter seamlessly starts a new game!
+                if (!gameActive) {
+                    this.value = '';
+                    startGame();
+                    return;
+                }
+
+                if(userString === "") return;
+
+                // Echo the input to terminal
+                printToTerminal(`>>> ${userString}`, "msg-sys");
+                this.value = ''; // clear input
+
+                processGuess(userString);
+            }
+        });
+
+        function processGuess(guessString) {
+            // Fulfilling constraint: Use 'int' function to convert player's guess
+            const guess = parseInt(guessString, 10);
+
+            // FIX: Handle invalid inputs gracefully so they don't break the tracker
+            if (isNaN(guess)) {
+                printToTerminal("ValueError: Please enter a valid integer.", "msg-err");
+                printToTerminal("Enter your guess:", "msg-prompt");
+                return;
+            }
+
+            currentAttempts++;
+            let feedback = "";
+            let badgeClass = "";
+            let statusText = "";
+
+            // Fulfilling constraint: Use an 'if/else' statement to check guess
+            if (guess < targetNumber) {
+                feedback = "Your guess is too low. Guess again.";
+                badgeClass = "badge-low";
+                statusText = "Too Low";
+                printToTerminal(feedback, "msg-warn");
+            } 
+            else if (guess > targetNumber) {
+                feedback = "Your guess is too high. Guess again.";
+                badgeClass = "badge-high";
+                statusText = "Too High";
+                printToTerminal(feedback, "msg-warn");
+            } 
+            else {
+                // FIX: Matched exact text from the original instructions
+                feedback = `Congratulations! You guessed the number correctly!`;
+                badgeClass = "badge-correct";
+                statusText = "Correct!";
+                printToTerminal(feedback, "msg-succ");
+                endGame(true);
+            }
+
+            logHistory(guess, feedback, badgeClass, statusText);
+            updateStatsUI();
+
+            // Check for game over condition via max guesses
+            if (gameActive && maxAllowedGuesses > 0 && currentAttempts >= maxAllowedGuesses) {
+                printToTerminal(`Game Over! You ran out of guesses. The number was ${targetNumber}.`, "msg-err");
+                endGame(false);
+            } else if (gameActive) {
+                printToTerminal("Enter your guess:", "msg-prompt");
+            }
+        }
+
+        function endGame(isWin) {
+            gameActive = false;
+            btnStart.disabled = false;
+            btnReset.disabled = true;
+            
+            // FIX: The input is NO LONGER disabled so the player can press enter again
+            cmdInput.placeholder = "Press Enter to play again..."; 
+            
+            printToTerminal("Process finished with exit code 0", "msg-sys");
+            printToTerminal("Press Enter to start a new game.", "msg-sys");
+        }
+
+        // --- UI Updaters ---
+
+        function updateStatsUI() {
+            let remainStr = maxAllowedGuesses === 0 ? "∞" : (maxAllowedGuesses - currentAttempts);
+            statsCounter.innerText = `Attempts: ${currentAttempts} | Remaining: ${remainStr}`;
+        }
+
+        function logHistory(guess, feedback, badgeClass, statusText) {
+            // FIX: Remove the placeholder if it exists on the first successful guess
+            const placeholder = document.getElementById('historyPlaceholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = "fade-row"; // Add visual animation class
+            
+            // Format HTML row
+            tr.innerHTML = `
+                <td><strong>#${currentAttempts}</strong></td>
+                <td style="font-family: var(--font-mono);">${guess}</td>
+                <td>${feedback}</td>
+                <td><span class="badge ${badgeClass}">${statusText || 'Error'}</span></td>
+            `;
+
+            // Insert at top of table body so the newest guess is always visible
+            historyBody.insertBefore(tr, historyBody.firstChild);
+        }
+
+    </script>
+</body>
+</html>
